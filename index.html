@@ -1,4 +1,3 @@
-<!-- Save as index.html or similar -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,8 +63,12 @@
     body.dark-mode footer {
       color: #aaa;
     }
-    #toggle-theme {
+    #btn-container {
       margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
       padding: 5px 10px;
       font-size: 0.8rem;
       cursor: pointer;
@@ -73,8 +76,9 @@
       border: none;
       border-radius: 4px;
       transition: background 0.3s, color 0.3s;
+      user-select: none;
     }
-    body.dark-mode #toggle-theme {
+    body.dark-mode button {
       background: #444;
       color: #eee;
     }
@@ -82,7 +86,12 @@
 </head>
 <body>
   <h1>C42 Flight Buddy</h1>
-  <button id="toggle-theme">Dark Mode</button>
+
+  <div id="btn-container">
+    <button id="toggle-theme">Dark Mode</button>
+    <button id="vis-check">Vis. Check</button>
+  </div>
+
   <p><em>Version: 3.0</em></p>
   <p>Check flight weather at Swansea Airport</p>
 
@@ -267,54 +276,38 @@ QNH: ${item.pressure} hPa
 QFE: ${QFE} hPa
 ${highlight("Wind: ", item.windDeg + "° @ " + windKts + " kt", item.windKts > 20)}
 ${highlight("Gusts: ", gustKts + " kt", item.gustKts > 20)}
-Visibility: ${visDisplay}
-Cloud cover: ${item.cloudCover} %
+${highlight("Runway: ", runway, false, "green")}
+${highlight("Visibility: ", visDisplay, item.visibility < 5000, visClass)}
 Weather: <span class="${rainClass} highlight">${item.weatherDesc}</span>
-Icing Risk: ${icing === 'Risk' ? `<span class="bad highlight">${icing}</span>` : icing}
-Wind Shear Risk: <span class="${shear.class}">${shear.level}</span>
-Turbulence Risk: <span class="${turb.class}">${turb.level}</span>
-Predicted Runway: ${runway}
-${highlight("Status: ", safe.safe ? "✅ OK" : "❌ Limit Exceeded", !safe.safe)}\n`;
+Icing risk: ${icing}
+Wind shear risk: <span class="${shear.class}">${shear.level}</span>
+Turbulence risk: <span class="${turb.class}">${turb.level}</span>
+${safe.safe ? "<span class='ok'>All conditions within C42 limits.</span>" : `<span class='bad'>Warning: ${safe.msg}</span>`}
+      `.trim();
     });
 
-    const hasBad = combined.some(f => !checkLimits(f.windKts, f.gustKts, f.visibility, f.weatherDesc, f.cloudCover, estimateCloudBase(f.temp, estimateDewPoint(f.temp, f.humidity))).safe);
-    const status = hasBad
-      ? '<p class="bad"><strong>❌ Weather issues detected during flight.</strong></p>'
-      : '<p class="ok"><strong>✅ Weather suitable for full flight duration.</strong></p>';
+    resDiv.innerHTML = messages.join("\n\n");
 
-    resDiv.innerHTML = `<h3>Flight Weather Check for ${formatUKDate(startTime)} to ${formatUKDate(endTime)}</h3><pre>${messages.join('\n')}</pre>${status}`;
-  } catch (err) {
-    resDiv.innerHTML = '<p class="bad">Error fetching weather data.</p>';
-    console.error(err);
+  } catch (e) {
+    resDiv.innerHTML = `<p class="bad">Failed to load weather data: ${e.message}</p>`;
   }
 }
 
-window.addEventListener("load", () => {
-  const now = new Date();
-  now.setUTCMinutes(0,0,0);
-  now.setUTCHours(now.getUTCHours() + 1);
-  const isoString = now.toISOString().slice(0,16);
-  document.getElementById("start").value = isoString;
-  document.getElementById("duration").value = 1;
-  checkFlight();
+document.getElementById("start").addEventListener("change", checkFlight);
+document.getElementById("duration").addEventListener("change", checkFlight);
 
-  const toggleBtn = document.getElementById('toggle-theme');
-  const body = document.body;
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    body.classList.add('dark-mode');
-    toggleBtn.textContent = 'Light Mode';
-  }
-
-  toggleBtn.addEventListener('click', () => {
-    body.classList.toggle('dark-mode');
-    toggleBtn.textContent = body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
-    localStorage.setItem('theme', body.classList.contains('dark-mode') ? 'dark' : 'light');
-  });
+// Dark mode toggle
+document.getElementById("toggle-theme").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
 });
 
-document.getElementById("start").addEventListener("change", checkFlight);
-document.getElementById("duration").addEventListener("input", checkFlight);
+// Vis. Check button
+document.getElementById("vis-check").addEventListener("click", () => {
+  window.open("vis-check.html", "_blank");
+});
+
+// Optionally trigger initial check
+// checkFlight();
 </script>
 </body>
 </html>
