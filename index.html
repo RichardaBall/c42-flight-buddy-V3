@@ -82,7 +82,7 @@
 <body>
   <h1>C42 Flight Buddy</h1>
   <button id="toggle-theme">Dark Mode</button>
-  <p><em>Version: 3.0</em></p>
+  <p><em>Version: 2.0</em></p>
   <p>Check flight weather at Swansea Airport</p>
 
   <label for="start">Flight Start (GMT):</label>
@@ -100,7 +100,8 @@
 <script>
 const LAT = 51.605;
 const LON = -4.064;
-const API_KEY = '81a0d8bef1288c6437560f89b336dd33';
+const OPENWEATHER_API_KEY = '81a0d8bef1288c6437560f89b336dd33'; // replace with your OWM key
+const METEOSOURCE_API_KEY = 'mpwturrttqmcb4ax95xo94feri15h24bzcj6736m';
 const elevation = 295;
 
 function estimateDewPoint(temp, humidity) {
@@ -163,6 +164,18 @@ function formatUKDate(d) {
   return `${days[d.getUTCDay()]}, ${String(d.getUTCDate()).padStart(2,'0')} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} GMT`;
 }
 
+// Fetch visibility from Meteosource API (current and hourly forecast)
+async function fetchVisibility(timeUnix) {
+  // Meteosource hourly endpoint for Swansea location
+  // We'll fetch hourly data and find closest hour to timeUnix
+  const url = `https://api.meteosource.com/v1/point/hourly?lat=${LAT}&lon=${LON}&start=${timeUnix}&end=${timeUnix + 3600}&parameters=visibility&units=metric&timezone=UTC&apikey=${METEOSOURCE_API_KEY}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('Meteosource API error');
+  const json = await resp.json();
+  if (!json.data || json.data.length === 0) return null;
+  return json.data[0].visibility; // visibility in meters
+}
+
 async function checkFlight() {
   const startInput = document.getElementById("start").value;
   const duration = parseFloat(document.getElementById("duration").value);
@@ -186,9 +199,11 @@ async function checkFlight() {
   resDiv.innerHTML = '<p>Loading weather data...</p>';
 
   try {
-    const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric`);
+    // Fetch OpenWeatherMap forecast data (3-hour intervals)
+    const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${OPENWEATHER_API_KEY}&units=metric`);
     const data = await response.json();
 
+    // Find the forecast interval just before or at startTime
     let previousInterval = null;
     for (let i = data.list.length - 1; i >= 0; i--) {
       const forecastStart = new Date(data.list[i].dt * 1000);
@@ -198,6 +213,7 @@ async function checkFlight() {
       }
     }
     if (!previousInterval) {
+      // If none found before startTime, take the first forecast after
       for (let item of data.list) {
         const forecastStart = new Date(item.dt * 1000);
         if (forecastStart > startTime) {
@@ -212,6 +228,7 @@ async function checkFlight() {
       return;
     }
 
+    // Collect relevant forecasts within flight window
     let relevantForecasts = [previousInterval];
     data.list.forEach(item => {
       const forecastStart = new Date(item.dt * 1000);
@@ -222,7 +239,13 @@ async function checkFlight() {
 
     let messages = [];
 
-    relevantForecasts.forEach(item => {
+    // For each forecast, get visibility from Meteosource and combine
+    for (const item of relevantForecasts) {
+      const forecastUnix = item.dt; // unix timestamp (seconds)
+      // Fetch visibility from Meteosource for this time
+      let visibility = await fetchVisibility(forecastUnix);
+      if (visibility === null) visibility = 10000; // fallback 10km
+
       const main = item.main || {};
       const wind = item.wind || {};
       const weatherArr = item.weather || [];
@@ -230,138 +253,59 @@ async function checkFlight() {
       const pressure = main.pressure || 0;
       const humidity = main.humidity || 0;
       const temp = main.temp || 0;
-      const windDeg = wind.deg || 0;
-      const windSpeed = wind.speed || 0;
-      const gustSpeed = wind.gust || 0;
-      const visibility = item.visibility !== undefined ? item.visibility : 10000;
-      const cloudCover = clouds.all || 0;
-      const weatherDesc = weatherArr.length ? weatherArr[0].description : "unknown";
-
       const dewPoint = estimateDewPoint(temp, humidity);
       const cloudBase = estimateCloudBase(temp, dewPoint);
-      const windKts = +(windSpeed * 1.94384).toFixed(1);
-      const gustKts = +(gustSpeed * 1.94384).toFixed(1);
-      const QFE = (pressure - (elevation * 0.12)).toFixed(1);
-      const runway = predictRunway(windDeg);
-      const safe = checkLimits(windKts, gustKts, visibility, weatherDesc, cloudCover, cloudBase);
+      const windSpeed = wind.speed ? wind.speed * 1.94384 : 0; // m/s to knots
+      const windGust = wind.gust ? wind.gust * 1.94384 : windSpeed;
+      const windDir = wind.deg || 0;
+      const desc = weatherArr.length > 0 ? weatherArr[0].description : "N/A";
+      const cloudCover = clouds.all || 0;
+
+      const limitsCheck = checkLimits(windSpeed, windGust, visibility, desc, cloudCover, cloudBase);
       const icing = icingRisk(temp, dewPoint);
-      const shear = shearRisk(windKts, gustKts);
-      const turb = turbulenceRisk(gustKts);
+      const shear = shearRisk(windSpeed, windGust);
+      const turbulence = turbulenceRisk(windGust);
 
-      let visClass = "";
-      if (visibility < 3000) visClass = "bad";
-      else if (visibility < 5000) visClass = "warn";
+      const runway = predictRunway(windDir);
 
-      const visDisplay = visibility > 5000 ? '>5000 m' : `<span class="${visClass} highlight">${visibility} m</span>`;
-
-      const rainLevel = (() => {
-        const descLower = weatherDesc.toLowerCase();
-        if (!descLower.includes('rain')) return 'none';
-        if (descLower.includes('light') && cloudCover < 99) return 'warn';
-        return 'bad';
-      })();
-      const rainClass = rainLevel === 'bad' ? 'bad' : rainLevel === 'warn' ? 'warn' : '';
+      let forecastTime = new Date(forecastUnix * 1000);
+      let timeStr = formatUKDate(forecastTime);
 
       messages.push(
-`Time: ${formatUKDate(new Date(item.dt * 1000))}
-Temperature: ${temp.toFixed(1)}°C
-${highlight("Cloud base: ~", cloudBase + " ft AGL", cloudBase < 1000, "bad")}
-QNH: ${pressure} hPa
-QFE: ${QFE} hPa
-${highlight("Wind: ", windDeg + "° @ " + windKts + " kt", windKts > 20)}
-${highlight("Gusts: ", gustKts + " kt", gustKts > 20)}
-Visibility: ${visDisplay}
-Cloud cover: ${cloudCover} %
-Weather: <span class="${rainClass} highlight">${weatherDesc}</span>
-Icing Risk: ${icing === 'Risk' ? `<span class="bad highlight">${icing}</span>` : icing}
-Wind Shear Risk: <span class="${shear.class}">${shear.level}</span>
-Turbulence Risk: <span class="${turb.class}">${turb.level}</span>
-Predicted Runway: ${runway}
-${highlight("Status: ", safe.safe ? "✅ OK" : "❌ Limit Exceeded", !safe.safe)}\n`
+        `--- Weather Forecast for ${timeStr} ---\n` +
+        `Visibility: ${highlight('', visibility + ' m', visibility < 5000, 'bad')}\n` +
+        `Temperature: ${temp.toFixed(1)} °C\n` +
+        `Dew Point: ${dewPoint.toFixed(1)} °C\n` +
+        `Humidity: ${humidity}%\n` +
+        `Wind: ${windSpeed.toFixed(1)} kt gusts ${windGust.toFixed(1)} kt, direction ${windDir}°\n` +
+        `Predicted Runway: ${runway}\n` +
+        `Cloud Cover: ${cloudCover}%\n` +
+        `Estimated Cloud Base: ${cloudBase} ft\n` +
+        `Conditions: ${desc}\n` +
+        `Pressure: ${pressure} hPa\n` +
+        `Icing Risk: ${icing}\n` +
+        `Wind Shear Risk: ${shear.level}\n` +
+        `Turbulence Risk: ${turbulence.level}\n` +
+        `${limitsCheck.safe ? '<span class="ok">Conditions within C42 limits.</span>' : `<span class="bad">${limitsCheck.msg}</span>`}`
       );
-    });
+    }
 
-    const anyBad = relevantForecasts.some(item => {
-      const main = item.main || {};
-      const wind = item.wind || {};
-      const weatherArr = item.weather || [];
-      const clouds = item.clouds || {};
-      const pressure = main.pressure || 0;
-      const humidity = main.humidity || 0;
-      const temp = main.temp || 0;
-      const windSpeed = wind.speed || 0;
-      const gustSpeed = wind.gust || 0;
-      const visibility = item.visibility !== undefined ? item.visibility : 10000;
-      const cloudCover = clouds.all || 0;
-      const weatherDesc = weatherArr.length ? weatherArr[0].description : "unknown";
+    resDiv.innerHTML = messages.join('\n\n');
 
-      const dewPoint = estimateDewPoint(temp, humidity);
-      const cloudBase = estimateCloudBase(temp, dewPoint);
-      const windKts = (windSpeed * 1.94384).toFixed(1);
-      const gustKts = (gustSpeed * 1.94384).toFixed(1);
-      const safe = checkLimits(windKts, gustKts, visibility, weatherDesc, cloudCover, cloudBase);
-
-      const rainLevel = (() => {
-        const descLower = weatherDesc.toLowerCase();
-        if (!descLower.includes('rain')) return 'none';
-        if (descLower.includes('light') && cloudCover < 99) return 'warn';
-        return 'bad';
-      })();
-
-      if (!safe.safe || rainLevel === 'bad') return true;
-      return false;
-    });
-
-    const overallStatus = anyBad
-      ? '<p class="bad"><strong>❌ Weather issues detected during flight.</strong></p>'
-      : '<p class="ok"><strong>✅ Weather suitable for full flight duration.</strong></p>';
-
-    resDiv.innerHTML = 
-      `<h3>Flight Weather Check for ${formatUKDate(startTime)} to ${formatUKDate(endTime)}</h3>
-      <pre>${messages.join("\n")}</pre>
-      ${overallStatus}`
-    ;
-
-  } catch (e) {
-    resDiv.innerHTML = '<p class="bad">Error fetching weather data.</p>';
+  } catch (error) {
+    resDiv.innerHTML = `<p class="bad">Error fetching weather data: ${error.message}</p>`;
   }
 }
 
-window.addEventListener('load', () => {
-  const now = new Date();
-  now.setUTCMinutes(0,0,0);
-  now.setUTCHours(now.getUTCHours() + 1);
-  const isoString = now.toISOString().slice(0,16);
-  document.getElementById("start").value = isoString;
-  document.getElementById("duration").value = 1;
-  checkFlight();
-
-  // Theme toggle button
-  const toggleBtn = document.getElementById('toggle-theme');
-  const body = document.body;
-
-  // Load saved theme
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    body.classList.add('dark-mode');
-    toggleBtn.textContent = 'Light Mode';
-  }
-
-  toggleBtn.addEventListener('click', () => {
-    if (body.classList.contains('dark-mode')) {
-      body.classList.remove('dark-mode');
-      toggleBtn.textContent = 'Dark Mode';
-      localStorage.setItem('theme', 'light');
-    } else {
-      body.classList.add('dark-mode');
-      toggleBtn.textContent = 'Light Mode';
-      localStorage.setItem('theme', 'dark');
-    }
-  });
-});
-
 document.getElementById("start").addEventListener("change", checkFlight);
-document.getElementById("duration").addEventListener("input", checkFlight);
+document.getElementById("duration").addEventListener("change", checkFlight);
+
+// Theme toggle
+const toggleThemeBtn = document.getElementById("toggle-theme");
+toggleThemeBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  toggleThemeBtn.textContent = document.body.classList.contains("dark-mode") ? "Light Mode" : "Dark Mode";
+});
 </script>
 </body>
 </html>
