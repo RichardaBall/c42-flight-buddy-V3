@@ -63,8 +63,11 @@
     body.dark-mode footer {
       color: #aaa;
     }
-    #toggle-theme, #visibility-btn {
+    #button-container {
       margin-bottom: 15px;
+    }
+    #button-container button {
+      margin-right: 10px;
       padding: 5px 10px;
       font-size: 0.8rem;
       cursor: pointer;
@@ -73,15 +76,9 @@
       border-radius: 4px;
       transition: background 0.3s, color 0.3s;
     }
-    body.dark-mode #toggle-theme, body.dark-mode #visibility-btn {
+    body.dark-mode #button-container button {
       background: #444;
       color: #eee;
-    }
-    #button-container {
-      margin-bottom: 15px;
-    }
-    #button-container button {
-      margin-right: 10px;
     }
   </style>
 </head>
@@ -89,7 +86,7 @@
   <h1>C42 Flight Buddy</h1>
   <div id="button-container">
     <button id="toggle-theme">Dark Mode</button>
-    <button id="visibility-btn">Visibility</button>
+    <button id="webcam-btn">Open Webcam</button>
   </div>
   <p><em>Version: 3.0</em></p>
   <p>Check flight weather at Swansea Airport</p>
@@ -330,22 +327,20 @@ ${highlight("Status: ", safe.safe ? "✅ OK" : "❌ Limit Exceeded", !safe.safe)
       overallStatus +
       messages.join("\n");
   } catch(e) {
-    resDiv.innerHTML = `<p class="bad">Error fetching weather data: ${e.message}</p>`;
+    resDiv.innerHTML = `<p class="bad">Error fetching weather data.</p>`;
   }
 }
 
 document.getElementById("start").addEventListener("change", checkFlight);
 document.getElementById("duration").addEventListener("change", checkFlight);
 
-document.getElementById("toggle-theme").onclick = () => {
+document.getElementById("toggle-theme").addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
-  document.getElementById("toggle-theme").textContent = document.body.classList.contains("dark-mode") ? "Light Mode" : "Dark Mode";
-};
+});
 
-document.getElementById("visibility-btn").onclick = () => {
-  const res = document.getElementById("results");
-  alert("Visibility in meters as provided by OpenWeatherMap. >5000 m is good.");
-};
+document.getElementById("webcam-btn").addEventListener("click", () => {
+  window.open("https://www.gowerlive.co.uk/mumbles-webcam/", "_blank");
+});
 </script>
 </body>
 </html>
