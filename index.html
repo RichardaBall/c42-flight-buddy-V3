@@ -63,11 +63,8 @@
     body.dark-mode footer {
       color: #aaa;
     }
-    #button-container {
+    #toggle-theme, #visibility-btn {
       margin-bottom: 15px;
-    }
-    #button-container button {
-      margin-right: 10px;
       padding: 5px 10px;
       font-size: 0.8rem;
       cursor: pointer;
@@ -75,8 +72,10 @@
       border: none;
       border-radius: 4px;
       transition: background 0.3s, color 0.3s;
+      margin-right: 8px;
     }
-    body.dark-mode #button-container button {
+    body.dark-mode #toggle-theme,
+    body.dark-mode #visibility-btn {
       background: #444;
       color: #eee;
     }
@@ -84,10 +83,8 @@
 </head>
 <body>
   <h1>C42 Flight Buddy</h1>
-  <div id="button-container">
-    <button id="toggle-theme">Dark Mode</button>
-    <button id="webcam-btn">Open Webcam</button>
-  </div>
+  <button id="toggle-theme">Dark Mode</button>
+  <button id="visibility-btn">Visibility</button>
   <p><em>Version: 3.0</em></p>
   <p>Check flight weather at Swansea Airport</p>
 
@@ -276,70 +273,52 @@ QNH: ${pressure} hPa
 QFE: ${QFE} hPa
 ${highlight("Wind: ", windDeg + "° @ " + windKts + " kt", windKts > 20)}
 ${highlight("Gusts: ", gustKts + " kt", gustKts > 20)}
+Runway: ${runway}
 Visibility: ${visDisplay}
-Cloud cover: ${cloudCover} %
-Weather: <span class="${rainClass} highlight">${weatherDesc}</span>
-Icing Risk: ${icing === 'Risk' ? `<span class="bad highlight">${icing}</span>` : icing}
-Wind Shear Risk: <span class="${shear.class}">${shear.level}</span>
-Turbulence Risk: <span class="${turb.class}">${turb.level}</span>
-Predicted Runway: ${runway}
-${highlight("Status: ", safe.safe ? "✅ OK" : "❌ Limit Exceeded", !safe.safe)}\n`
+${highlight("Weather: ", weatherDesc, rainLevel === 'bad', rainClass)}
+Icing: ${icing === "Risk" ? '<span class="warn highlight">Risk</span>' : 'Low'}
+Wind shear risk: <span class="${shear.class} highlight">${shear.level}</span>
+Turbulence risk: <span class="${turb.class} highlight">${turb.level}</span>
+Flight suitability: ${safe.safe ? '<span class="ok highlight">Safe</span>' : '<span class="bad highlight">Not safe</span>'}
+${safe.msg ? `Reason: ${safe.msg}` : ''}
+---------------------`
       );
     });
 
-    const anyBad = relevantForecasts.some(item => {
-      const main = item.main || {};
-      const wind = item.wind || {};
-      const weatherArr = item.weather || [];
-      const clouds = item.clouds || {};
-      const pressure = main.pressure || 0;
-      const humidity = main.humidity || 0;
-      const temp = main.temp || 0;
-      const windSpeed = wind.speed || 0;
-      const gustSpeed = wind.gust || 0;
-      const visibility = item.visibility !== undefined ? item.visibility : 10000;
-      const cloudCover = clouds.all || 0;
-      const weatherDesc = weatherArr.length ? weatherArr[0].description : "unknown";
-
-      const dewPoint = estimateDewPoint(temp, humidity);
-      const cloudBase = estimateCloudBase(temp, dewPoint);
-      const windKts = (windSpeed * 1.94384).toFixed(1);
-      const gustKts = (gustSpeed * 1.94384).toFixed(1);
-      const safe = checkLimits(windKts, gustKts, visibility, weatherDesc, cloudCover, cloudBase);
-
-      const rainLevel = (() => {
-        const descLower = weatherDesc.toLowerCase();
-        if (!descLower.includes('rain')) return 'none';
-        if (descLower.includes('light') && cloudCover < 99) return 'warn';
-        return 'bad';
-      })();
-
-      if (!safe.safe || rainLevel === 'bad') return true;
-      return false;
-    });
-
-    const overallStatus = anyBad
-      ? '<p class="bad"><strong>❌ Weather issues detected during flight.</strong></p>'
-      : '<p class="ok"><strong>✅ Weather suitable for full flight duration.</strong></p>';
-
-    resDiv.innerHTML = 
-      `<h3>Flight Weather Check for Swansea Airport (C42)</h3>` +
-      overallStatus +
-      messages.join("\n");
-  } catch(e) {
-    resDiv.innerHTML = `<p class="bad">Error fetching weather data.</p>`;
+    resDiv.innerHTML = messages.join('\n');
+  } catch (e) {
+    resDiv.innerHTML = `<p class="bad">Error fetching weather data: ${e.message}</p>`;
   }
 }
 
-document.getElementById("start").addEventListener("change", checkFlight);
-document.getElementById("duration").addEventListener("change", checkFlight);
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  document.getElementById('toggle-theme').textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
+}
 
-document.getElementById("toggle-theme").addEventListener("click", () => {
-  document.body.classList.toggle("dark-mode");
+document.getElementById('toggle-theme').addEventListener('click', toggleDarkMode);
+
+// Visibility button opens the Gower Live Mumbles webcam site
+document.getElementById('visibility-btn').addEventListener('click', () => {
+  window.open('https://www.gowerlive.co.uk/mumbles-webcam/', '_blank');
 });
 
-document.getElementById("webcam-btn").addEventListener("click", () => {
-  window.open("https://www.gowerlive.co.uk/mumbles-webcam/", "_blank");
+// Helper to format datetime-local input from Date object (local time)
+function pad(num) {
+  return num.toString().padStart(2, '0');
+}
+function toLocalDatetimeInputString(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// Auto-set start to now and duration to 1, then auto-run checkFlight
+window.addEventListener('load', () => {
+  const now = new Date();
+  now.setSeconds(0,0);
+  document.getElementById('start').value = toLocalDatetimeInputString(now);
+  const dur = document.getElementById('duration');
+  if (!dur.value || dur.value <= 0) dur.value = 1;
+  checkFlight();
 });
 </script>
 </body>
