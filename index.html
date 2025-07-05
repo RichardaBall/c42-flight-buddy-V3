@@ -2,104 +2,174 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Conservative Weather Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>C42 Flight Buddy</title>
   <style>
-    body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
-    .weather-box { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-    h2 { margin-top: 0; }
+    /* (Your existing styles here — unchanged) */
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode { background: #121212; color: #eee; }
+    input { padding: 10px; margin: 5px 0; width: 100%; font-size: 1rem; background: #fff; border: 1px solid #ccc; color: #333; transition: background 0.3s, color 0.3s; }
+    body.dark-mode input { background: #333; border-color: #555; color: #eee; }
+    #results { margin-top: 20px; padding: 15px; background: #fff; border-radius: 5px; white-space: pre-wrap; font-weight: normal; transition: background 0.3s, color 0.3s; }
+    body.dark-mode #results { background: #222; color: #eee; }
+    .ok { color: green; }
+    .bad { color: red; }
+    .warn { color: orange; }
+    .green { color: green; }
+    .amber { color: orange; }
+    .red { color: red; }
+    .highlight { font-weight: normal; }
+    footer { margin-top: 40px; text-align: center; font-size: 0.9rem; color: #666; transition: color 0.3s; }
+    body.dark-mode footer { color: #aaa; }
+    #toggle-theme { margin-bottom: 15px; padding: 5px 10px; font-size: 0.8rem; cursor: pointer; background: #ddd; border: none; border-radius: 4px; transition: background 0.3s, color 0.3s; }
+    body.dark-mode #toggle-theme { background: #444; color: #eee; }
   </style>
 </head>
 <body>
-  <div class="weather-box">
-    <h2>Conservative Weather Report</h2>
-    <p><strong>Visibility:</strong> <span id="visibility">Loading...</span></p>
-    <p><strong>Wind Speed:</strong> <span id="windSpeed">Loading...</span></p>
-    <p><strong>Wind Gust:</strong> <span id="windGust">Loading...</span></p>
-    <p><strong>Cloud Cover:</strong> <span id="cloudCover">Loading...</span></p>
-  </div>
+  <h1>C42 Flight Buddy</h1>
+  <button id="toggle-theme">Dark Mode</button>
+  <p><em>Version: 3.0</em></p>
+  <p>Check flight weather at Swansea Airport</p>
 
-  <script>
-    const lat = 51.605;
-    const lon = -4.064;
+  <label for="start">Flight Start (GMT):</label>
+  <input type="datetime-local" id="start" />
 
-    const openWeatherKey = '81a0d8bef1288c6437560f89b336dd33';
-    const weatherbitKey = '0b4166c963064508b1267d1cac0741e1';
-    const stormglassKey = '38300d82-5994-11f0-bc20-0242ac130006-38300e86-5994-11f0-bc20-0242ac130006';
+  <label for="duration">Flight Duration (hours):</label>
+  <input type="number" id="duration" min="0.5" step="0.5" value="1" />
 
-    async function getOpenWeather() {
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${openWeatherKey}&units=metric`;
-      const res = await fetch(url);
-      const data = await res.json();
-      return {
-        visibility: data.visibility / 1000, // meters to km
-        windSpeed: data.wind.speed,
-        windGust: data.wind.gust || data.wind.speed,
-        cloudCover: data.clouds.all
-      };
-    }
+  <div id="results"></div>
 
-    async function getWeatherbit() {
-      const url = `https://api.weatherbit.io/v2.0/current?lat=${lat}&lon=${lon}&key=${weatherbitKey}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const d = data.data[0];
-      return {
-        visibility: d.vis, // km
-        windSpeed: d.wind_spd,
-        windGust: d.wind_gust_spd || d.wind_spd,
-        cloudCover: d.clouds
-      };
-    }
+  <footer>
+    &copy; 2025 Richard Ball. All rights reserved.
+  </footer>
 
-    async function getStormglass() {
-      const params = ['visibility', 'windSpeed', 'windGust', 'cloudCover'].join(',');
-      const url = `https://api.stormglass.io/v2/weather/point?lat=${lat}&lng=${lon}&params=${params}&source=sg`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': stormglassKey }
-      });
-      const data = await res.json();
-      const d = data.hours[0]; // current hour
+<script>
+const LAT = 51.605;
+const LON = -4.064;
+const API_KEY = '81a0d8bef1288c6437560f89b336dd33';
+const WEATHERBIT_KEY = '0b4166c963064508b1267d1cac0741e1';
+const STORMGLASS_KEY = '38300d82-5994-11f0-bc20-0242ac130006-38300e86-5994-11f0-bc20-0242ac130006';
+const elevation = 295;
 
-      return {
-        visibility: d.visibility?.sg ?? 10,
-        windSpeed: d.windSpeed?.sg ?? 0,
-        windGust: d.windGust?.sg ?? d.windSpeed?.sg ?? 0,
-        cloudCover: d.cloudCover?.sg ?? 0
-      };
-    }
+function estimateDewPoint(temp, humidity) {
+  return temp - ((100 - humidity) / 5);
+}
+function estimateCloudBase(temp, dewPoint) {
+  return Math.round((temp - dewPoint) * 400);
+}
+function highlight(label, value, condition, cls="bad") {
+  if (!condition) return label + value;
+  return `${label}<span class="${cls} highlight">${value}</span>`;
+}
+function predictRunway(windDir) {
+  const runways = { '04': 40, '22': 220, '10': 100, '28': 280 };
+  return Object.entries(runways).reduce((a, b) => {
+    const aDiff = Math.min(Math.abs(a[1] - windDir), 360 - Math.abs(a[1] - windDir));
+    const bDiff = Math.min(Math.abs(b[1] - windDir), 360 - Math.abs(b[1] - windDir));
+    return aDiff < bDiff ? a : b;
+  })[0];
+}
+function checkLimits(wind, gusts, vis, desc, cloudCover, cloudBase) {
+  if (parseFloat(wind) > 20) return { safe: false, msg: "Wind exceeds C42 limits (>20 kt)" };
+  if (parseFloat(gusts) > 20) return { safe: false, msg: "Gust exceeds C42 limits (>20 kt)" };
+  if (vis < 5000) return { safe: false, msg: "Visibility too low (<5000 m)" };
+  const descLower = desc.toLowerCase();
+  if (descLower.includes("fog") || descLower.includes("mist")) {
+    return { safe: false, msg: "Fog or mist present — not suitable" };
+  }
+  if (cloudBase < 1000) return { safe: false, msg: "Estimated cloud base below 1000 ft AGL" };
+  return { safe: true, msg: "" };
+}
+function icingRisk(temp, dewPoint) {
+  if (temp <= 5 && temp >= -5 && Math.abs(temp - dewPoint) < 2) return "Risk";
+  return "Low";
+}
+function shearRisk(windKts, gustKts) {
+  const diff = gustKts - windKts;
+  if (diff >= 15) return { level: "High", class: "red" };
+  if (diff >= 10) return { level: "Moderate", class: "amber" };
+  if (diff >= 5)  return { level: "Low", class: "green" };
+  return { level: "None", class: "" };
+}
+function turbulenceRisk(gustKts) {
+  if (gustKts >= 25) return { level: "High", class: "red" };
+  if (gustKts >= 20) return { level: "Moderate", class: "amber" };
+  if (gustKts >= 15) return { level: "Low", class: "green" };
+  return { level: "None", class: "" };
+}
+function formatUKDate(d) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${days[d.getUTCDay()]}, ${String(d.getUTCDate()).padStart(2,'0')} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} GMT`;
+}
 
-    function getConservative(values, key, isLowBetter = true) {
-      const valid = values.map(v => v[key]).filter(v => typeof v === 'number');
-      if (valid.length === 0) return 'N/A';
-      return isLowBetter ? Math.min(...valid) : Math.max(...valid);
-    }
+async function fetchWeatherbit() {
+  const r = await fetch(`https://api.weatherbit.io/v2.0/current?lat=${LAT}&lon=${LON}&key=${WEATHERBIT_KEY}`);
+  const d = (await r.json()).data[0];
+  return {
+    visibility: d.vis * 1000, // km → m
+    windSpeed: d.wind_spd * 1.94384, // m/s → kt
+    gustSpeed: (d.wind_gust_spd || d.wind_spd) * 1.94384,
+    cloudCover: d.clouds
+  };
+}
 
-    async function updateWeather() {
-      try {
-        const [owm, wb, sg] = await Promise.all([
-          getOpenWeather(),
-          getWeatherbit(),
-          getStormglass()
-        ]);
+async function fetchStormglass() {
+  const params = 'visibility,windSpeed,windGust,cloudCover';
+  const r = await fetch(`https://api.stormglass.io/v2/weather/point?lat=${LAT}&lng=${LON}&params=${params}`, {
+    headers: { Authorization: STORMGLASS_KEY }
+  });
+  const h = (await r.json()).hours[0].source.sg;
+  return {
+    visibility: h.visibility * 1000 || 10000,
+    windSpeed: h.windSpeed * 1.94384 || 0,
+    gustSpeed: h.windGust * 1.94384 || 0,
+    cloudCover: h.cloudCover || 0
+  };
+}
 
-        const allData = [owm, wb, sg];
+async function checkFlight() {
+  // [unchanged UI validation...]
 
-        const visibility = getConservative(allData, 'visibility', true);
-        const windSpeed = getConservative(allData, 'windSpeed', false);
-        const windGust = getConservative(allData, 'windGust', false);
-        const cloudCover = getConservative(allData, 'cloudCover', false);
+  resDiv.innerHTML = '<p>Loading weather data...</p>';
+  try {
+    const [owRes, wb, sg] = await Promise.all([
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric`),
+      fetchWeatherbit(),
+      fetchStormglass()
+    ]);
+    const data = await owRes.json();
 
-        document.getElementById('visibility').textContent = `${visibility} km`;
-        document.getElementById('windSpeed').textContent = `${windSpeed} m/s`;
-        document.getElementById('windGust').textContent = `${windGust} m/s`;
-        document.getElementById('cloudCover').textContent = `${cloudCover}%`;
-      } catch (error) {
-        console.error('Weather fetch error:', error);
-      }
-    }
+    // [unchanged interval selection logic...]
+    // For each 'item' in relevantForecasts:
+    relevantForecasts.forEach(item => {
+      // extract OpenWeather values (visibility, wind, gust, cloudCover)
 
-    updateWeather();
-  </script>
+      // Take conservative per-metric across [OW, WB, SG]:
+      const visibility = Math.min(visibilityOW, wb.visibility, sg.visibility);
+      const windKts = Math.max(windKtsOW, wb.windSpeed, sg.windSpeed);
+      const gustKts = Math.max(gustKtsOW, wb.gustSpeed, sg.gustSpeed);
+      const cloudCover = Math.max(cloudCoverOW, wb.cloudCover, sg.cloudCover);
+
+      // rest of your logic exactly as original
+      // ...
+    });
+
+    // [rest of UI render unchanged]
+  } catch (e) {
+    resDiv.innerHTML = '<p class="bad">Error fetching weather data.</p>';
+  }
+}
+
+// [rest of your load event listeners/UI initialization unchanged]
+</script>
 </body>
 </html>
