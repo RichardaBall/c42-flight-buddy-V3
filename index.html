@@ -2,275 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>C42 Flight Buddy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Weather Data</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: auto;
-      padding: 20px;
-      background: #f5f5f5;
-      color: #333;
-      transition: background 0.3s, color 0.3s;
-    }
-    body.dark-mode {
-      background: #121212;
-      color: #eee;
-    }
-    input {
-      padding: 10px;
-      margin: 5px 0;
-      width: 100%;
-      font-size: 1rem;
-      background: #fff;
-      border: 1px solid #ccc;
-      color: #333;
-      transition: background 0.3s, color 0.3s;
-    }
-    body.dark-mode input {
-      background: #333;
-      border-color: #555;
-      color: #eee;
-    }
-    #results {
-      margin-top: 20px;
-      padding: 15px;
-      background: #fff;
-      border-radius: 5px;
-      white-space: pre-wrap;
-      font-weight: normal;
-      transition: background 0.3s, color 0.3s;
-    }
-    body.dark-mode #results {
-      background: #222;
-      color: #eee;
-    }
-    .ok { color: green; }
-    .bad { color: red; }
-    .warn { color: orange; }
-    .green { color: green; }
-    .amber { color: orange; }
-    .red { color: red; }
-    .highlight { font-weight: normal; }
-    footer {
-      margin-top: 40px;
-      text-align: center;
-      font-size: 0.9rem;
-      color: #666;
-      transition: color 0.3s;
-    }
-    body.dark-mode footer {
-      color: #aaa;
-    }
-    #toggle-theme {
-      margin-bottom: 15px;
-      padding: 5px 10px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      background: #ddd;
-      border: none;
-      border-radius: 4px;
-      transition: background 0.3s, color 0.3s;
-    }
-    body.dark-mode #toggle-theme {
-      background: #444;
-      color: #eee;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    .metric { margin-bottom: 10px; }
+    .metric span.label { font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>C42 Flight Buddy</h1>
-  <button id="toggle-theme">Dark Mode</button>
-  <p><em>Version: 3.0</em></p>
-  <p>Check flight weather at Swansea Airport</p>
+  <h1>Live Weather Data</h1>
+  <div id="weather">
+    <p>Loading data...</p>
+  </div>
 
-  <label for="start">Flight Start (GMT):</label>
-  <input type="datetime-local" id="start" />
+  <script>
+    const modelsApiKey = 'eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJhbGxAYW9sLmNvbUBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6InJpY2hhcmRhYmFsbEBhb2wuY29tIiwidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJhdG1vc3BoZXJpYy00YTZlZTIzNi0yMGFkLTQ5NmEtODU3Ny1jNWFmNmNiZTI1OGQiLCJpZCI6MTkxNTEsInV1aWQiOiJhNTQ5YTk2OS1kYmMyLTRmZmEtOGM3YS1kY2M2ODlmMjA0OTAifSwiaXNzIjoiaHR0cHM6XC9cL2FwaS1tYW5hZ2VyLmFwaS1tYW5hZ2VtZW50Lm1ldG9mZmljZS5jbG91ZDo0NDNcL29hdXRoMlwvdG9rZW4iLCJ0aWVySW5mbyI6eyJ3ZGhfYXRtb3NwaGVyaWNfZnJlZSI6eyJ0aWVyUXVvdGFUeXBlIjoicmVxdWVzdENvdW50IiwiZ3JhcGhRTE1heENvbXBsZXhpdHkiOjAsImdyYXBoUUxNYXhEZXB0aCI6MCwic3RvcE9uUXVvdGFSZWFjaCI6dHJ1ZSwic3Bpa2VBcnJlc3RMaW1pdCI6MCwic3Bpa2VBcnJlc3RVbml0Ijoic2VjIn19LCJrZXl0eXBlIjoiUFJPRFVDVElPTiIsInN1YnNjcmliZWRBUElzIjpbeyJzdWJzY3JpYmVyVGVuYW50RG9tYWluIjoiY2FyYm9uLnN1cGVyIiwibmFtZSI6ImF0bW9zcGhlcmljLW1vZGVscyIsImNvbnRleHQiOiJcL2F0bW9zcGhlcmljLW1vZGVsc1wvMS4wLjAiLCJwdWJsaXNoZXIiOiJXREhfQ0kiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX2F0bW9zcGhlcmljX2ZyZWUifV0sInRva2VuX3R5cGUiOiJhcGlLZXkiLCJpYXQiOjE3NTE3MDAyMTYsImp0aSI6Ijc0ZjBkMTM1LThjYmEtNDQyZi1iM2VkLTkzMmQxNGJlNzI0MSJ9.PntT9t9QLT0HogAElnF33sgnCZ16Lwi_JScWpNGjFsceT9FCGd7181QwBwGMNHLRB8vyZ_vsLMSzCRdY6soefOocYcuheWs6TLjdVN-EsX-D1khWYQ9GRC2qjix9WqJgVehxC9WjiGe5htkkmVm_HZyD4u_tXnsA7fICfD3UGKB-pIoLMnhrpaxPqCJjBIuqjDEnsEdHJT2nTEz868fEQt6Qcl5MG1W6UhPftOK_879l88FcfvW3I_nlR3_Pc6TxHy7q1swbAb4OetK6pdQta2hXS72WtRVCkRki86SRrX2FwUebyL655d98LN4l9_MHKG0VsFocsmbeAeQ6ywOT0A==';
+    const spotApiKey   = 'eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJhbGxAYW9sLmNvbUBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6InJpY2hhcmRhYmFsbEBhb2wuY29tIiwidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJzaXRlX3NwZWNpZmljLTRhNmVlMjM2LTIwYWQtNDk2YS04NTc3LWM1YWY2Y2JlMjU4ZCIsImlkIjoxOTE1NCwidXVpZCI6ImQyN2E1YTNjLTBhZDItNGJkMi1iZDQ1LWEzMjA0NzAxNDU3MSJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9zaXRlX3NwZWNpZmljX2ZyZWUiOnsidGllclF1b3RhVHlwZSI6InJlcXVlc3RDb3VudCIsImdyYXBoUUxNYXhDb21wbGV4aXR5IjowLCJncmFwaFFMTWF4RGVwdGgiOjAsInN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6InNlYyJ9fSwia2V5dHlwZSI6IlBST0RVQ1RJT04iLCJzdWJzY3JpYmVkQVBJcyI6W3sic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJTaXRlU3BlY2lmaWNGb3JlY2FzdCIsImNvbnRleHQiOiJcL3NpdGVzcGVjaWZpY1wvdjAiLCJwdWJsaXNoZXIiOiJKYWd1YXJfQ0kiLCJ2ZXJzaW9uIjoidjAiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX3NpdGVfc3BlY2lmaWNfZnJlZSJ9XSwidG9rZW5fdHlwZSI6ImFwaUtleSIsImlhdCI6MTc1MTcwMTU5MiwianRpIjoiYTcwZTUyYzEtMTI2Yy00ZGFmLWJlYTMtZDA2YzBkYjNkN2U1In0=.JB9ZSIEmWykbF7_PUFcRXt4wbREJ2Dx5as4ZtVNl6usjVBkpQPRGiR8eoUZP-n-j4kAHWbc1El7qpdXIXSiFQGgSFkxy1Yzr-TYwQ2ISp4gYv5LofH9eh_vnN7yLLz0X4atd1cTqZPPbfz8AKnm2br4nJpz1AiRYnBCN2Ufys4tQ92o75wRm-Q5ThRfUYMoba6rXVwBT_VqkgpL5FcLAcgzUdnMEfga2uF_zkdo4lnTH6k57MOMWqlQq1y4QxXTCz-dgffigXqDL7VmV3_EPxLLEMpnu96uZBik-S0O7FSlK44v45DKen6qudObVKZL9zLOW2taYDOSH4ISNQeAqEw==';
+    const mapApiKey    = 'eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJhbGxAYW9sLmNvbUBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6InJpY2hhcmRhYmFsbEBhb2wuY29tIiwidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJtYXBfaW1hZ2VzLTRhNmVlMjM2LTIwYWQtNDk2YS04NTc3LWM1YWY2Y2JlMjU4ZCIsImlkIjoxOTE1NSwidXVpZCI6IjI5YjNlN2JhLTM0NmEtNDI5Yy1hNDNmLTEwZTQ4OWRlZWM3YyJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9tYXBfaW1hZ2VzX2ZyZWUiOnsidGllclF1b3RhVHlwZSI6InJlcXVlc3RDb3VudCIsImdyYXBoUUxNYXhDb21wbGV4aXR5IjowLCJncmFwaFFMTWF4RGVwdGgiOjAsInN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6InNlYyJ9fSwia2V5dHlwZSI6IlBST0RVQ1RJT04iLCJzdWJzY3JpYmVkQVBJcyI6W3sic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJtYXAtaW1hZ2VzIiwiY29udGV4dCI6IlwvbWFwLWltYWdlc1wvMS4wLjAiLCJwdWJsaXNoZXIiOiJXREhfQ0kiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX21hcF9pbWFnZXNfZnJlZSJ9XSwidG9rZW5fdHlwZSI6ImFwaUtleSIsImlhdCI6MTc1MTcwMTYyNSwianRpIjoiNGI5MjUyMjgtZDE0NC00ZmU2LWE0NzYtNDk2MzYyZTBlMzk4In0=.fK6Z55PKgT1Pn6pLX_xIxp3k9L_UzOb3pL8aNWTrMJ90YX-gBGfHnGgDL6E1tEvKdJ38OQCOY1JYEhzKYr1NC65aYCBmKP35Yl_4x5skOQ06sm0jMIHy5T5swqvT6l_2TRJZTImnP-wWTlR5e1n2jLRIRemTSVi3Thq2Yk7UmtGh4KZ3fLwQMBcT5_qsvs6kON3bkASIZTw_6N8IkCfFeAUZJmE_ehO8pUp8J160ih8lRgRW1FUskpiY0cY4ATzpcfCpf1P0Li6rSTmYd1Y2cUrEu6-gofrv45EWl8NwX6RKgn1YANEZqerw5KMdwJ0vmWZcwtOkgqvTTkqxzgyXdQ==';
 
-  <label for="duration">Flight Duration (hours):</label>
-  <input type="number" id="duration" min="0.5" step="0.5" value="1" />
-
-  <div id="results"></div>
-
-  <footer>
-    &copy; 2025 Richard Ball. All rights reserved.
-  </footer>
-
-<script>
-const LAT = 51.605;
-const LON = -4.064;
-const elevation = 295;
-const API_KEYS = {
-  atmosphericModels: "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJhbGxAYW9sLmNvbUBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6InJpY2hhcmRhYmFsbEBhb2wuY29tIiwidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJhdG1vc3BoZXJpYy00YTZlZTIzNi0yMGFkLTQ5NmEtODU3Ny1jNWFmNmNiZTI1OGQiLCJpZCI6MTkxNTEsInV1aWQiOiJhNTQ5YTk2OS1kYmMyLTRmZmEtOGM3YS1kY2M2ODlmMjA0OTAifSwiaXNzIjoiaHR0cHM6XC9cL2FwaS1tYW5hZ2VyLmFwaS1tYW5hZ2VtZW50Lm1ldG9mZmljZS5jbG91ZDo0NDNcL29hdXRoMlwvdG9rZW4iLCJ0aWVySW5mbyI6eyJ3ZGhfYXRtb3NwaGVyaWNfZnJlZSI6eyJ0aWVyUXVvdGFUeXBlIjoicmVxdWVzdENvdW50IiwiZ3JhcGhRTE1heENvbXBsZXhpdHkiOjAsImdyYXBoUUxNYXhEZXB0aCI6MCwic3RvcE9uUXVvdGFSZWFjaCI6dHJ1ZSwic3Bpa2VBcnJlc3RMaW1pdCI6MCwic3Bpa2VBcnJlc3RVbml0Ijoic2VjIn19LCJrZXl0eXBlIjoiUFJPRFVDVElPTiIsInN1YnNjcmliZWRBUElzIjpbeyJzdWJzY3JpYmVyVGVuYW50RG9tYWluIjoiY2FyYm9uLnN1cGVyIiwibmFtZSI6ImF0bW9zcGhlcmljLW1vZGVscyIsImNvbnRleHQiOiJcL2F0bW9zcGhlcmljLW1vZGVsc1wvMS4wLjAiLCJwdWJsaXNoZXIiOiJXREhfQ0kiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX2F0bW9zcGhlcmljX2ZyZWUifV0sInRva2VuX3R5cGUiOiJhcGlLZXkiLCJpYXQiOjE3NTE3MDAyMTYsImp0aSI6Ijc0ZjBkMTM1LThjYmEtNDQyZi1iM2VkLTkzMmQxNGJlNzI0MSJ9.PntT9t9QLT0HogAElnF33sgnCZ16Lwi_JScWpNGjFsceT9FCGd7181QwBwGMNHLRB8vyZ_vsLMSzCRdY6soefOocYcuheWs6TLjdVN-EsX-D1khWYQ9GRC2qjix9WqJgVehxC9WjiGe5htkkmVm_HZyD4u_tXnsA7fICfD3UGKB-pIoLMnhrpaxPqCJjBIuqjDEnsEdHJT2nTEz868fEQt6Qcl5MG1W6UhPftOK_879l88FcfvW3I_nlR3_Pc6TxHy7q1swbAb4OetK6pdQta2hXS72WtRVCkRki86SRrX2FwUebyL655d98LN4l9_MHKG0VsFocsmbeAeQ6ywOT0A==",
-  globalSpot: "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJhbGxAYW9sLmNvbUBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6InJpY2hhcmRhYmFsbEBhb2wuY29tIiwidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJzaXRlX3NwZWNpZmljLTRhNmVlMjM2LTIwYWQtNDk2YS04NTc3LWM1YWY2Y2JlMjU4ZCIsImlkIjoxOTE1NCwidXVpZCI6ImQyN2E1YTNjLTBhZDItNGJkMi1iZDQ1LWEzMjA0NzAxNDU3MSJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9zaXRlX3NwZWNpZmljX2ZyZWUiOnsidGllclF1b3RhVHlwZSI6InJlcXVlc3RDb3VudCIsImdyYXBoUUxNYXhDb21wbGV4aXR5IjowLCJncmFwaFFMTWF4RGVwdGgiOjAsInN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6InNlYyJ9fSwia2V5dHlwZSI6IlBST0RVQ1RJT04iLCJzdWJzY3JpYmVkQVBJcyI6W3sic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJTaXRlU3BlY2lmaWNGb3JlY2FzdCIsImNvbnRleHQiOiJcL3NpdGVzcGVjaWZpY1wvdjAiLCJwdWJsaXNoZXIiOiJKYWd1YXJfQ0kiLCJ2ZXJzaW9uIjoidjAiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX3NpdGVfc3BlY2lmaWNfZnJlZSJ9XSwidG9rZW5fdHlwZSI6ImFwaUtleSIsImlhdCI6MTc1MTcwMTU5MiwianRpIjoiYTcwZTUyYzEtMTI2Yy00ZGFmLWJlYTMtZDA2YzBkYjNkN2U1In0=.JB9ZSIEmWykbF7_PUFcRXt4wbREJ2Dx5as4ZtVNl6usjVBkpQPRGiR8eoUZP-n-j4kAHWbc1El7qpdXIXSiFQGgSFkxy1Yzr-TYwQ2ISp4gYv5LofH9eh_vnN7yLLz0X4atd1cTqZPPbfz8AKnm2br4nJpz1AiRYnBCN2Ufys4tQ92o75wRm-Q5ThRfUYMoba6rXVwBT_VqkgpL5FcLAcgzUdnMEfga2uF_zkdo4lnTH6k57MOMWqlQq1y4QxXTCz-dgffigXqDL7VmV3_EPxLLEMpnu96uZBik-S0O7FSlK44v45DKen6qudObVKZL9zLOW2taYDOSH4ISNQeAqEw==",
-  mapImages: "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJhbGxAYW9sLmNvbUBjYXJib24uc3VwZXIiLCJhcHBsaWNhdGlvbiI6eyJvd25lciI6InJpY2hhcmRhYmFsbEBhb2wuY29tIiwidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJtYXBfaW1hZ2VzLTRhNmVlMjM2LTIwYWQtNDk2YS04NTc3LWM1YWY2Y2JlMjU4ZCIsImlkIjoxOTE1NSwidXVpZCI6IjI5YjNlN2JhLTM0NmEtNDI5Yy1hNDNmLTEwZTQ4OWRlZWM3YyJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9tYXBfaW1hZ2VzX2ZyZWUiOnsidGllclF1b3RhVHlwZSI6InJlcXVlc3RDb3VudCIsImdyYXBoUUxNYXhDb21wbGV4aXR5IjowLCJncmFwaFFMTWF4RGVwdGgiOjAsInN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6InNlYyJ9fSwia2V5dHlwZSI6IlBST0RVQ1RJT04iLCJzdWJzY3JpYmVkQVBJcyI6W3sic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJtYXAtaW1hZ2VzIiwiY29udGV4dCI6IlwvbWFwLWltYWdlc1wvMS4wLjAiLCJwdWJsaXNoZXIiOiJXREhfQ0kiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX21hcF9pbWFnZXNfZnJlZSJ9XSwidG9rZW5fdHlwZSI6ImFwaUtleSIsImlhdCI6MTc1MTcwMTYyNSwianRpIjoiNGI5MjUyMjgtZDE0NC00ZmU2LWE0NzYtNDk2MzYyZTBlMzk4In0=.fK6Z55PKgT1Pn6pLX_xIxp3k9L_UzOb3pL8aNWTrMJ90YX-gBGfHnGgDL6E1tEvKdJ38OQCOY1JYEhzKYr1NC65aYCBmKP35Yl_4x5skOQ06sm0jMIHy5T5swqvT6l_2TRJZTImnP-wWTlR5e1n2jLRIRemTSVi3Thq2Yk7UmtGh4KZ3fLwQMBcT5_qsvs6kON3bkASIZTw_6N8IkCfFeAUZJmE_ehO8pUp8J160ih8lRgRW1FUskpiY0cY4ATzpcfCpf1P0Li6rSTmYd1Y2cUrEu6-gofrv45EWl8NwX6RKgn1YANEZqerw5KMdwJ0vmWZcwtOkgqvTTkqxzgyXdQ=="
-};
-
-let isDarkMode = false;
-document.getElementById('toggle-theme').addEventListener('click', () => {
-  isDarkMode = !isDarkMode;
-  document.body.classList.toggle('dark-mode', isDarkMode);
-  document.getElementById('toggle-theme').textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
-});
-
-document.getElementById('start').value = new Date().toISOString().slice(0,16);
-document.getElementById('duration').value = 1;
-
-document.getElementById('start').addEventListener('change', fetchWeather);
-document.getElementById('duration').addEventListener('input', fetchWeather);
-
-document.addEventListener('DOMContentLoaded', fetchWeather);
-
-async function fetchWeather() {
-  const resultsEl = document.getElementById('results');
-  resultsEl.textContent = "Fetching weather data...";
-
-  const startInput = document.getElementById('start').value;
-  const durationInput = parseFloat(document.getElementById('duration').value);
-
-  if (!startInput || !durationInput || durationInput <= 0) {
-    resultsEl.textContent = "Please enter valid start time and duration.";
-    return;
-  }
-
-  const startTime = new Date(startInput);
-  const endTime = new Date(startTime.getTime() + durationInput * 3600000);
-
-  try {
-    const atmosphericModelsData = await fetchAtmosphericModels(startTime, endTime);
-    const globalSpotData = await fetchGlobalSpot();
-    const mapImagesData = await fetchMapImages();
-
-    let visibility = null;
-    if (atmosphericModelsData && atmosphericModelsData.visibility !== undefined) {
-      visibility = atmosphericModelsData.visibility;
-    } else if (globalSpotData && globalSpotData.visibility !== undefined) {
-      visibility = globalSpotData.visibility;
+    async function fetchJson(url, options = {}) {
+      const resp = await fetch(url, options);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return resp.json();
     }
 
-    let message = `Weather at Swansea Airport (Lat:${LAT}, Lon:${LON})\n`;
-    message += `Flight start: ${startTime.toUTCString()}\n`;
-    message += `Duration: ${durationInput} hour(s)\n\n`;
+    async function loadWeather() {
+      const container = document.getElementById('weather');
+      container.innerHTML = '';
 
-    if (visibility !== null) {
-      message += `Visibility: ${visibility} meters\n`;
-      if (visibility >= 5000) {
-        message += "Visibility Status: Good (Green)\n";
-      } else if (visibility >= 2000) {
-        message += "Visibility Status: Moderate (Amber)\n";
-      } else {
-        message += "Visibility Status: Poor (Red)\n";
-      }
-    } else {
-      message += "Visibility data not available.\n";
-    }
+      try {
+        // 1. Atmospheric Models
+        const atm = await fetchJson('https://api-manager.example.com/atmospheric-models/1.0.0/data', {
+          headers: { Authorization: `Bearer ${modelsApiKey}` }
+        });
+        // 2. Global Spot
+        const spot = await fetchJson('https://api-manager.example.com/spot-specific/v0/data', {
+          headers: { Authorization: `Bearer ${spotApiKey}` }
+        });
+        // 3. Map Images (for runway?
+        const map = await fetchJson('https://api-manager.example.com/map-images/v1.0.0/data', {
+          headers: { Authorization: `Bearer ${mapApiKey}` }
+        });
 
-    if (globalSpotData) {
-      message += `Temperature: ${globalSpotData.temperature} °C\n`;
-      message += `Wind: ${globalSpotData.windSpeed} m/s, direction ${globalSpotData.windDirection}°\n`;
-    }
+        const data = {
+          Temperature: spot.temperature,
+          'Cloud Base': atm.cloud_base,
+          QNH: spot.qnh,
+          QFH: atm.qfh,
+          Wind: spot.wind_speed,
+          Gusts: spot.wind_gusts,
+          Visibility: atm.visibility,
+          'Cloud Cover': atm.cloud_cover,
+          Weather: atm.weather,
+          'Icing Risk': atm.icing_risk,
+          'Wind Shear Risk': atm.wind_shear_risk,
+          'Turbulence Risk': atm.turbulence_risk,
+          'Predicted Runway': map.predicted_runway
+        };
 
-    if (mapImagesData && mapImagesData.imageUrl) {
-      message += `\nWeather Map Image URL:\n${mapImagesData.imageUrl}\n`;
-    }
-
-    resultsEl.textContent = message;
-
-  } catch (error) {
-    resultsEl.textContent = "Error fetching weather data: " + error.message;
-  }
-}
-
-async function fetchAtmosphericModels(startTime, endTime) {
-  const apiUrl = "https://api.metoffice.gov.uk/atmospheric-models/v0/forecasts/point";
-  const params = new URLSearchParams({
-    latitude: LAT,
-    longitude: LON,
-    altitude: elevation,
-    modelType: "ukv",
-    timestep: "60",
-    start: startTime.toISOString(),
-    end: endTime.toISOString(),
-    filterParameter: "visibility",
-  });
-
-  try {
-    const response = await fetch(`${apiUrl}?${params.toString()}`, {
-      headers: { "X-Api-Key": API_KEYS.atmosphericModels }
-    });
-    if (!response.ok) throw new Error("Atmospheric Models API error");
-    const data = await response.json();
-
-    if (data && data.features && data.features.length) {
-      const visibilityValue = data.features[0].properties.parameters.find(p => p.name === "visibility");
-      if (visibilityValue && visibilityValue.levels && visibilityValue.levels.length) {
-        return { visibility: visibilityValue.levels[0].value };
+        for (const [label, value] of Object.entries(data)) {
+          const div = document.createElement('div');
+          div.className = 'metric';
+          div.innerHTML = `<span class="label">${label}:</span> ${value ?? '—'}`;
+          container.appendChild(div);
+        }
+      } catch (e) {
+        container.innerHTML = `<p style="color: red">Error loading data: ${e.message}</p>`;
       }
     }
-    return null;
-  } catch (err) {
-    console.warn("Atmospheric Models fetch failed:", err);
-    return null;
-  }
-}
 
-async function fetchGlobalSpot() {
-  const apiUrl = "https://api.metoffice.gov.uk/global-spot-forecast/v0/forecasts/point";
-  const params = new URLSearchParams({
-    latitude: LAT,
-    longitude: LON,
-    filterParameter: "temperature,wind_speed,wind_direction,visibility"
-  });
-
-  try {
-    const response = await fetch(`${apiUrl}?${params.toString()}`, {
-      headers: { "X-Api-Key": API_KEYS.globalSpot }
-    });
-    if (!response.ok) throw new Error("Global Spot API error");
-    const data = await response.json();
-
-    if (data && data.features && data.features.length) {
-      const params = data.features[0].properties.parameters;
-      const temperature = params.find(p => p.name === "temperature")?.levels[0]?.value;
-      const windSpeed = params.find(p => p.name === "wind_speed")?.levels[0]?.value;
-      const windDirection = params.find(p => p.name === "wind_direction")?.levels[0]?.value;
-      const visibility = params.find(p => p.name === "visibility")?.levels[0]?.value;
-
-      return { temperature, windSpeed, windDirection, visibility };
-    }
-    return null;
-  } catch (err) {
-    console.warn("Global Spot fetch failed:", err);
-    return null;
-  }
-}
-
-async function fetchMapImages() {
-  const apiUrl = "https://api.metoffice.gov.uk/map-images/v0/images";
-  const params = new URLSearchParams({
-    latitude: LAT,
-    longitude: LON,
-    zoom: "12",
-    type: "rain"
-  });
-
-  try {
-    const response = await fetch(`${apiUrl}?${params.toString()}`, {
-      headers: { "X-Api-Key": API_KEYS.mapImages }
-    });
-    if (!response.ok) throw new Error("Map Images API error");
-    const data = await response.json();
-
-    if (data && data.images && data.images.length > 0) {
-      return { imageUrl: data.images[0].url };
-    }
-    return null;
-  } catch (err) {
-    console.warn("Map Images fetch failed:", err);
-    return null;
-  }
-}
-</script>
+    // Load on page open
+    window.addEventListener('load', loadWeather);
+  </script>
 </body>
 </html>
