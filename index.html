@@ -1,1 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>C42 Flight Buddy</title>
+  <style>
+    /* (Keep your existing styles here unchanged) */
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode {
+      background: #121212;
+      color: #eee;
+    }
+    input {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      font-size: 1rem;
+      background: #fff;
+      border: 1px solid #ccc;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode input {
+      background: #333;
+      border-color: #555;
+      color: #eee;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      font-weight: normal;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode #results {
+      background: #222;
+      color: #eee;
+    }
+    .ok { color: green; }
+    .bad { color: red; }
+    .warn { color: orange; }
+    .green { color: green; }
+    .amber { color: orange; }
+    .red { color: red; }
+    .highlight { font-weight: normal; }
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #666;
+      transition: color 0.3s;
+    }
+    body.dark-mode footer {
+      color: #aaa;
+    }
+    #toggle-theme {
+      margin-bottom: 15px;
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: #ddd;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode #toggle-theme {
+      background: #444;
+      color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>C42 Flight Buddy</h1>
+  <button id="toggle-theme">Dark Mode</button>
+  <p><em>Version: 2.0</em></p>
+  <p>Check flight weather at Swansea Airport</p>
+
+  <label for="start">Flight Start (GMT):</label>
+  <input type="datetime-local" id="start" />
+
+  <label for="duration">Flight Duration (hours):</label>
+  <input type="number" id="duration" min="0.5" step="0.5" value="1" />
+
+  <div id="results"></div>
+
+  <footer>
+    &copy; 2025 Richard Ball. All rights reserved.
+  </footer>
+
+<script>
+const LAT = 51.605;
+const LON = -4.064;
+const elevation = 295;
+const API_KEYS = {
+  atmosphericModels: "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJsbEBhb2wuY29tQ2FyYm9uLnN1cGVyIiwiYXBwbGljYXRpb24iOnsidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJhdG1vc3BoZXJpYy00YTZlZTIzNi0yMGFkLTQ5NmEtODU3Ny1jNWFmNmNiZTI1OGQiLCJpZCI6MTkxNTEsInV1aWQiOiJhNTQ5YTk2OS1kYmMyLTRmZmEtOGM3YS1kY2M2ODlmMjA0OTAifSwiaXNzIjoiaHR0cHM6XC9cL2FwaS1tYW5hZ2VyLmFwaS1tYW5hZ2VtZW50Lm1ldG9mZmljZS5jbG91ZDo0NDNcL29hdXRoMlwvdG9rZW4iLCJ0aWVySW5mbyI6eyJ3ZGhfYXRtb3NwaGVyaWNfZnJlZSI6eyJ0aWVyUXVvdGFUeXBlIjoicmVxdWVzdENvdW50IiwiZ3JhcGhRTE1heENvbXBsZXhpdHkiOjAsImdyYXBoUUxNYXhEZXB0aCI6MCwic3RvcE9uUXVvdGFSZWFjaCI6dHJ1ZSwic3Bpa2VBcnJlc3RMaW1pdCI6MCwic3Bpa2VBcnJlc3RVbml0Ijoic2VjIn19LCJrZXl0eXBlIjoiUFJPRDVENTIuIn0=",
+  globalSpot: "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJsbEBhb2wuY29tQ2FyYm9uLnN1cGVyIiwiYXBwbGljYXRpb24iOnsidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJzaXRlX3NwZWNpZmljLTRhNmVlMjM2LTIwYWQtNDk2YS04NTc3LWM1YWY2Y2JlMjU4ZCIsImlkIjoxOTE1NCwidXVpZCI6ImQyN2E1YTNjLTBhZDItNGJkMi1iZDQ1LWEzMjA0NzAxNDU3MSJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9zaXRlX3NwZWNpZmljX2ZyZWUiOnsidGllclF1b3RhVHlwZSI6InJlcXVlc3RDb3VudCIsImdyYXBoUUxNYXhDb21wbGV4aXR5IjowLCJncmFwaFFMTWF4RGVwdGgiOjAsInN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6InNlYyJ9fSwia2V5dHlwZSI6IlBST0RVQ1RJT04iLCJzdWJzY3JpYmVkQVBJcyI6W3sic3Vic2NyaWJlclRlbmFudERvbWFpbiI6ImNhcmJvbi5zdXBlciIsIm5hbWUiOiJTaXRlU3BlY2lmaWNGb3JlY2FzdCIsImlkIjoiY2FyYm9uIn1dfQ==",
+  mapImages: "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJyaWNoYXJkYWJsbEBhb2wuY29tQ2FyYm9uLnN1cGVyIiwiYXBwbGljYXRpb24iOnsidGllclF1b3RhVHlwZSI6bnVsbCwidGllciI6IlVubGltaXRlZCIsIm5hbWUiOiJtYXBfaW1hZ2VzLTRhNmVlMjM2LTIwYWQtNDk2YS04NTc3LWM1YWY2Y2JlMjU4ZCIsImlkIjoxOTE1NywidXVpZCI6ImIzZmM5M2JhLTM3Y2UtNDViOC05NDMyLTFkODJkMGI0OTZjNSJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9tYXBfaW1hZ2VzX2ZyZWUiOnsidGllclF1b3RhVHlwZSI6InJlcXVlc3RDb3VudCIsImdyYXBoUUxNYXhDb21wbGV4aXR5IjowLCJncmFwaFFMTWF4RGVwdGgiOjAsInN0b3BPblF1b3RhUmVhY2giOnRydWUsInNwaWtlQXJyZXN0TGltaXQiOjAsInNwaWtlQXJyZXN0VW5pdCI6InNlYyJ9fX0sImtleXR5cGUiOiJQUk9EVUNUSU9OIiwic3Vic2NyaWJlZEFQSVMiOlt7InN1YnNjcmliZXJUZW5hbnRkb21haW4iOiJjYXJib24uc3VwZXIiLCJuYW1lIjoiTWFwSW1hZ2VzIiwiaWQiOiJjYXJib24ifV19"
+};
+
+let isDarkMode = false;
+document.getElementById('toggle-theme').addEventListener('click', () => {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('dark-mode', isDarkMode);
+  document.getElementById('toggle-theme').textContent = isDarkMode ? 'Light Mode' : 'Dark Mode';
+});
+
+document.getElementById('start').value = new Date().toISOString().slice(0,16);
+document.getElementById('duration').value = 1;
+
+document.getElementById('start').addEventListener('change', fetchWeather);
+document.getElementById('duration').addEventListener('input', fetchWeather);
+
+async function fetchWeather() {
+  const resultsEl = document.getElementById('results');
+  resultsEl.textContent = "Fetching weather data...";
+
+  const startInput = document.getElementById('start').value;
+  const durationInput = parseFloat(document.getElementById('duration').value);
+
+  if (!startInput || !durationInput || durationInput <= 0) {
+    resultsEl.textContent = "Please enter valid start time and duration.";
+    return;
+  }
+
+  // Calculate flight start and end times in ISO format
+  const startTime = new Date(startInput);
+  const endTime = new Date(startTime.getTime() + durationInput * 3600000);
+
+  try {
+    // Fetch from Atmospheric Models API
+    const atmosphericModelsData = await fetchAtmosphericModels(startTime, endTime);
+
+    // Fetch from Global Spot API
+    const globalSpotData = await fetchGlobalSpot();
+
+    // Fetch from Map Images API
+    const mapImagesData = await fetchMapImages();
+
+    // Combine visibility estimates (choose best from sources)
+    // Use atmosphericModelsData visibility if available, else globalSpot, else fallback
+
+    let visibility = null;
+    if (atmosphericModelsData && atmosphericModelsData.visibility !== undefined) {
+      visibility = atmosphericModelsData.visibility;
+    } else if (globalSpotData && globalSpotData.visibility !== undefined) {
+      visibility = globalSpotData.visibility;
+    } else {
+      visibility = null;
+    }
+
+    // Compose result message
+    let message = `Weather at Swansea Airport (Lat:${LAT}, Lon:${LON})\n`;
+    message += `Flight start: ${startTime.toUTCString()}\n`;
+    message += `Duration: ${durationInput} hour(s)\n\n`;
+
+    // Visibility status
+    if (visibility !== null) {
+      message += `Visibility: ${visibility} meters\n`;
+      if (visibility >= 5000) {
+        message += "Visibility Status: Good (Green)\n";
+      } else if (visibility >= 2000) {
+        message += "Visibility Status: Moderate (Amber)\n";
+      } else {
+        message += "Visibility Status: Poor (Red)\n";
+      }
+    } else {
+      message += "Visibility data not available.\n";
+    }
+
+    // Additional weather info from Global Spot (temperature, wind)
+    if (globalSpotData) {
+      message += `Temperature: ${globalSpotData.temperature} °C\n`;
+      message += `Wind: ${globalSpotData.windSpeed} m/s, direction ${globalSpotData.windDirection}°\n`;
+    }
+
+    // Optionally add map image info or URL from Map Images API
+    if (mapImagesData && mapImagesData.imageUrl) {
+      message += `\nWeather Map Image URL:\n${mapImagesData.imageUrl}\n`;
+    }
+
+    resultsEl.textContent = message;
+
+  } catch (error) {
+    resultsEl.textContent = "Error fetching weather data: " + error.message;
+  }
+}
+
+async function fetchAtmosphericModels(startTime, endTime) {
+  const apiUrl = "https://api.metoffice.gov.uk/atmospheric-models/v0/forecasts/point";
+  const params = new URLSearchParams({
+    latitude: LAT,
+    longitude: LON,
+    altitude: elevation,
+    modelType: "ukv",
+    timestep: "60",
+    start: startTime.toISOString(),
+    end: endTime.toISOString(),
+    filterParameter: "visibility",
+  });
+
+  try {
+    const response = await fetch(`${apiUrl}?${params.toString()}`, {
+      headers: {
+        "X-Api-Key": API_KEYS.atmosphericModels
+      }
+    });
+    if (!response.ok) throw new Error("Atmospheric Models API error");
+    const data = await response.json();
+
+    // Extract visibility from forecast periods if available
+    if (data && data.features && data.features.length) {
+      // Take visibility from the first forecast (simplification)
+      const visibilityValue = data.features[0].properties.parameters.find(p => p.name === "visibility");
+      if (visibilityValue && visibilityValue.levels && visibilityValue.levels.length) {
+        return { visibility: visibilityValue.levels[0].value };
+      }
+    }
+    return null;
+  } catch (err) {
+    console.warn("Atmospheric Models fetch failed:", err);
+    return null;
+  }
+}
+
+async function fetchGlobalSpot() {
+  const apiUrl = "https://api.metoffice.gov.uk/global-spot-forecast/v0/forecasts/point";
+  const params = new URLSearchParams({
+    latitude: LAT,
+    longitude: LON,
+    filterParameter: "temperature,wind_speed,wind_direction,visibility"
+  });
+
+  try {
+    const response = await fetch(`${apiUrl}?${params.toString()}`, {
+      headers: {
+        "X-Api-Key": API_KEYS.globalSpot
+      }
+    });
+    if (!response.ok) throw new Error("Global Spot API error");
+    const data = await response.json();
+
+    // Extract temperature, wind, visibility
+    if (data && data.features && data.features.length) {
+      const params = data.features[0].properties.parameters;
+      const temperature = params.find(p => p.name === "temperature")?.levels[0]?.value;
+      const windSpeed = params.find(p => p.name === "wind_speed")?.levels[0]?.value;
+      const windDirection = params.find(p => p.name === "wind_direction")?.levels[0]?.value;
+      const visibility = params.find(p => p.name === "visibility")?.levels[0]?.value;
+
+      return { temperature, windSpeed, windDirection, visibility };
+    }
+    return null;
+  } catch (err) {
+    console.warn("Global Spot fetch failed:", err);
+    return null;
+  }
+}
+
+async function fetchMapImages() {
+  const apiUrl = "https://api.metoffice.gov.uk/map-images/v0/images";
+  const params = new URLSearchParams({
+    latitude: LAT,
+    longitude: LON,
+    zoom: "12",
+    type: "rain"
+  });
+
+  try {
+    const response = await fetch(`${apiUrl}?${params.toString()}`, {
+      headers: {
+        "X-Api-Key": API_KEYS.mapImages
+      }
+    });
+    if (!response.ok) throw new Error("Map Images API error");
+    const data = await response.json();
+
+    if (data && data.images && data.images.length > 0) {
+      // Return first image url
+      return { imageUrl: data.images[0].url };
+    }
+    return null;
+  } catch (err) {
+    console.warn("Map Images fetch failed:", err);
+    return null;
+  }
+}
+
+// Initial fetch on page load
+fetchWeather();
+
+</script>
+</body>
+</html>
 
