@@ -97,7 +97,6 @@ const LAT = 51.605;
 const LON = -4.064;
 const API_KEY = '81a0d8bef1288c6437560f89b336dd33';
 const WEATHERBIT_KEY = '0b4166c963064508b1267d1cac0741e1';
-const STORMGLASS_KEY = '38300d82-5994-11f0-bc20-0242ac130006-38300e86-5994-11f0-bc20-0242ac130006';
 
 function estimateDewPoint(temp, humidity) {
   return temp - ((100 - humidity) / 5);
@@ -161,21 +160,6 @@ async function fetchWeatherbit() {
   };
 }
 
-async function fetchStormglass() {
-  const params = 'visibility,windSpeed,windGust,cloudCover';
-  const r = await fetch(`https://api.stormglass.io/v2/weather/point?lat=${LAT}&lng=${LON}&params=${params}`, {
-    headers: { Authorization: STORMGLASS_KEY }
-  });
-  const d = await r.json();
-  const sg = d.hours[0];
-  return {
-    visibility: (sg.visibility?.sg ?? 10) * 1000,
-    windSpeed: (sg.windSpeed?.sg ?? 0) * 1.94384,
-    gustSpeed: (sg.windGust?.sg ?? 0) * 1.94384,
-    cloudCover: sg.cloudCover?.sg ?? 0
-  };
-}
-
 async function checkFlight() {
   const startInput = document.getElementById('start');
   const durationInput = document.getElementById('duration');
@@ -192,10 +176,9 @@ async function checkFlight() {
   resDiv.innerHTML = "<p>Loading weather data...</p>";
 
   try {
-    const [owRaw, wb, sg] = await Promise.all([
+    const [owRaw, wb] = await Promise.all([
       fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric`).then(r => r.json()),
-      fetchWeatherbit(),
-      fetchStormglass()
+      fetchWeatherbit()
     ]);
 
     const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
@@ -215,10 +198,10 @@ async function checkFlight() {
       const gustKts = (f.wind.gust || f.wind.speed) * 1.94384;
       const vis = f.visibility;
 
-      const visibility = Math.min(vis, wb.visibility, sg.visibility);
-      const wind = Math.max(windKts, wb.windSpeed, sg.windSpeed);
-      const gust = Math.max(gustKts, wb.gustSpeed, sg.gustSpeed);
-      const cloud = Math.max(f.clouds.all, wb.cloudCover, sg.cloudCover);
+      const visibility = Math.min(vis, wb.visibility);
+      const wind = Math.max(windKts, wb.windSpeed);
+      const gust = Math.max(gustKts, wb.gustSpeed);
+      const cloud = Math.max(f.clouds.all, wb.cloudCover);
       const desc = f.weather[0].description;
 
       const limits = checkLimits(wind, gust, visibility, desc, cloud, cloudBase);
