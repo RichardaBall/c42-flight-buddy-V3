@@ -2,37 +2,60 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Visibility from Meteosource</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weather Visibility</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 400px; margin: 2rem auto; padding: 1rem; }
+    label, input, button { display: block; margin: 0.5rem 0; width: 100%; }
+    #visibility { margin-top: 1rem; font-weight: bold; }
+  </style>
 </head>
 <body>
-  <h1>Current Visibility</h1>
-  <div id="visibility">Loading...</div>
-
+  <h1>Weather Visibility Checker</h1>
+  
+  <label for="lat">Latitude</label>
+  <input type="number" id="lat" placeholder="e.g. 51.6214" step="any" value="51.6214" />
+  
+  <label for="lon">Longitude</label>
+  <input type="number" id="lon" placeholder="e.g. -3.9436" step="any" value="-3.9436" />
+  
+  <label for="key">API Key</label>
+  <input type="text" id="key" placeholder="Your Meteosource API key" />
+  
+  <button id="getVisibility">Get Visibility</button>
+  
+  <div id="visibility">Visibility: -</div>
+  
   <script>
-    const apiKey = 'mpwturrttqmcb4ax95xo94feri15h24bzcj6736m';
-    const lat = '40.7128';   // Replace with your latitude
-    const lon = '-74.0060';  // Replace with your longitude
+    document.getElementById('getVisibility').addEventListener('click', () => {
+      const lat = document.getElementById('lat').value.trim();
+      const lon = document.getElementById('lon').value.trim();
+      const key = document.getElementById('key').value.trim();
+      const visibilityDiv = document.getElementById('visibility');
 
-    const url = `https://www.meteosource.com/api/v1/free/point?lat=${lat}&lon=${lon}&sections=current&units=metric&language=en&key=${apiKey}`;
+      if (!lat || !lon || !key) {
+        visibilityDiv.textContent = 'Please fill all fields.';
+        return;
+      }
 
-    fetch(url)
-      .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        return response.json();
-      })
-      .then(data => {
-        // Check the structure of data.current
-        if (data.current && data.current.visibility !== undefined) {
-          const visibility = data.current.visibility; // in meters
-          document.getElementById('visibility').textContent = `Visibility: ${visibility} meters`;
-        } else {
-          document.getElementById('visibility').textContent = 'Visibility data not found.';
-          console.log('API response:', data);
-        }
-      })
-      .catch(error => {
-        document.getElementById('visibility').textContent = `Error fetching data: ${error.message}`;
-      });
+      const proxyUrl = 'https://your-vercel-project.vercel.app/api/weather'; // <-- REPLACE this
+
+      visibilityDiv.textContent = 'Loading...';
+
+      fetch(`${proxyUrl}?lat=${lat}&lon=${lon}&key=${key}`)
+        .then(res => res.json())
+        .then(data => {
+          const vis = data.current?.visibility;
+          if (vis !== undefined) {
+            visibilityDiv.textContent = `Visibility: ${vis} meters`;
+          } else {
+            visibilityDiv.textContent = 'Visibility data not found.';
+          }
+        })
+        .catch(err => {
+          visibilityDiv.textContent = `Error: ${err.message}`;
+        });
+    });
   </script>
 </body>
 </html>
