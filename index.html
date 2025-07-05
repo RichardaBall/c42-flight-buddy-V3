@@ -10,8 +10,8 @@
 
   <script>
     const apiKey = 'mpwturrttqmcb4ax95xo94feri15h24bzcj6736m';
-    const lat = '40.7128';   // Example: New York latitude
-    const lon = '-74.0060';  // Example: New York longitude
+    const lat = '40.7128';   // Replace with your latitude
+    const lon = '-74.0060';  // Replace with your longitude
 
     const url = `https://www.meteosource.com/api/v1/free/point?lat=${lat}&lon=${lon}&sections=current&units=metric&language=en&key=${apiKey}`;
 
@@ -21,8 +21,14 @@
         return response.json();
       })
       .then(data => {
-        const visibility = data.current.visibility; // Visibility in meters
-        document.getElementById('visibility').textContent = `Visibility: ${visibility} meters`;
+        // Check the structure of data.current
+        if (data.current && data.current.visibility !== undefined) {
+          const visibility = data.current.visibility; // in meters
+          document.getElementById('visibility').textContent = `Visibility: ${visibility} meters`;
+        } else {
+          document.getElementById('visibility').textContent = 'Visibility data not found.';
+          console.log('API response:', data);
+        }
       })
       .catch(error => {
         document.getElementById('visibility').textContent = `Error fetching data: ${error.message}`;
