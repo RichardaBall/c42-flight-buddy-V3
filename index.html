@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>C42 Flight Buddy</title>
   <style>
-    /* (Your existing styles here — unchanged) */
     body {
       font-family: Arial, sans-serif;
       max-width: 600px;
@@ -16,10 +15,34 @@
       transition: background 0.3s, color 0.3s;
     }
     body.dark-mode { background: #121212; color: #eee; }
-    input { padding: 10px; margin: 5px 0; width: 100%; font-size: 1rem; background: #fff; border: 1px solid #ccc; color: #333; transition: background 0.3s, color 0.3s; }
-    body.dark-mode input { background: #333; border-color: #555; color: #eee; }
-    #results { margin-top: 20px; padding: 15px; background: #fff; border-radius: 5px; white-space: pre-wrap; font-weight: normal; transition: background 0.3s, color 0.3s; }
-    body.dark-mode #results { background: #222; color: #eee; }
+    input {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      font-size: 1rem;
+      background: #fff;
+      border: 1px solid #ccc;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode input {
+      background: #333;
+      border-color: #555;
+      color: #eee;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      font-weight: normal;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode #results {
+      background: #222;
+      color: #eee;
+    }
     .ok { color: green; }
     .bad { color: red; }
     .warn { color: orange; }
@@ -27,10 +50,28 @@
     .amber { color: orange; }
     .red { color: red; }
     .highlight { font-weight: normal; }
-    footer { margin-top: 40px; text-align: center; font-size: 0.9rem; color: #666; transition: color 0.3s; }
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #666;
+      transition: color 0.3s;
+    }
     body.dark-mode footer { color: #aaa; }
-    #toggle-theme { margin-bottom: 15px; padding: 5px 10px; font-size: 0.8rem; cursor: pointer; background: #ddd; border: none; border-radius: 4px; transition: background 0.3s, color 0.3s; }
-    body.dark-mode #toggle-theme { background: #444; color: #eee; }
+    #toggle-theme {
+      margin-bottom: 15px;
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: #ddd;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark-mode #toggle-theme {
+      background: #444;
+      color: #eee;
+    }
   </style>
 </head>
 <body>
@@ -57,7 +98,6 @@ const LON = -4.064;
 const API_KEY = '81a0d8bef1288c6437560f89b336dd33';
 const WEATHERBIT_KEY = '0b4166c963064508b1267d1cac0741e1';
 const STORMGLASS_KEY = '38300d82-5994-11f0-bc20-0242ac130006-38300e86-5994-11f0-bc20-0242ac130006';
-const elevation = 295;
 
 function estimateDewPoint(temp, humidity) {
   return temp - ((100 - humidity) / 5);
@@ -81,8 +121,7 @@ function checkLimits(wind, gusts, vis, desc, cloudCover, cloudBase) {
   if (parseFloat(wind) > 20) return { safe: false, msg: "Wind exceeds C42 limits (>20 kt)" };
   if (parseFloat(gusts) > 20) return { safe: false, msg: "Gust exceeds C42 limits (>20 kt)" };
   if (vis < 5000) return { safe: false, msg: "Visibility too low (<5000 m)" };
-  const descLower = desc.toLowerCase();
-  if (descLower.includes("fog") || descLower.includes("mist")) {
+  if (desc.toLowerCase().includes("fog") || desc.toLowerCase().includes("mist")) {
     return { safe: false, msg: "Fog or mist present — not suitable" };
   }
   if (cloudBase < 1000) return { safe: false, msg: "Estimated cloud base below 1000 ft AGL" };
@@ -115,8 +154,8 @@ async function fetchWeatherbit() {
   const r = await fetch(`https://api.weatherbit.io/v2.0/current?lat=${LAT}&lon=${LON}&key=${WEATHERBIT_KEY}`);
   const d = (await r.json()).data[0];
   return {
-    visibility: d.vis * 1000, // km → m
-    windSpeed: d.wind_spd * 1.94384, // m/s → kt
+    visibility: d.vis * 1000,
+    windSpeed: d.wind_spd * 1.94384,
     gustSpeed: (d.wind_gust_spd || d.wind_spd) * 1.94384,
     cloudCover: d.clouds
   };
@@ -127,49 +166,94 @@ async function fetchStormglass() {
   const r = await fetch(`https://api.stormglass.io/v2/weather/point?lat=${LAT}&lng=${LON}&params=${params}`, {
     headers: { Authorization: STORMGLASS_KEY }
   });
-  const h = (await r.json()).hours[0].source.sg;
+  const d = await r.json();
+  const sg = d.hours[0];
   return {
-    visibility: h.visibility * 1000 || 10000,
-    windSpeed: h.windSpeed * 1.94384 || 0,
-    gustSpeed: h.windGust * 1.94384 || 0,
-    cloudCover: h.cloudCover || 0
+    visibility: (sg.visibility?.sg ?? 10) * 1000,
+    windSpeed: (sg.windSpeed?.sg ?? 0) * 1.94384,
+    gustSpeed: (sg.windGust?.sg ?? 0) * 1.94384,
+    cloudCover: sg.cloudCover?.sg ?? 0
   };
 }
 
 async function checkFlight() {
-  // [unchanged UI validation...]
+  const startInput = document.getElementById('start');
+  const durationInput = document.getElementById('duration');
+  const resDiv = document.getElementById('results');
 
-  resDiv.innerHTML = '<p>Loading weather data...</p>';
+  const start = new Date(startInput.value);
+  const duration = parseFloat(durationInput.value);
+
+  if (!start || isNaN(duration)) {
+    resDiv.innerHTML = "<p class='bad'>Please provide valid inputs.</p>";
+    return;
+  }
+
+  resDiv.innerHTML = "<p>Loading weather data...</p>";
+
   try {
-    const [owRes, wb, sg] = await Promise.all([
-      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric`),
+    const [owRaw, wb, sg] = await Promise.all([
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric`).then(r => r.json()),
       fetchWeatherbit(),
       fetchStormglass()
     ]);
-    const data = await owRes.json();
 
-    // [unchanged interval selection logic...]
-    // For each 'item' in relevantForecasts:
-    relevantForecasts.forEach(item => {
-      // extract OpenWeather values (visibility, wind, gust, cloudCover)
-
-      // Take conservative per-metric across [OW, WB, SG]:
-      const visibility = Math.min(visibilityOW, wb.visibility, sg.visibility);
-      const windKts = Math.max(windKtsOW, wb.windSpeed, sg.windSpeed);
-      const gustKts = Math.max(gustKtsOW, wb.gustSpeed, sg.gustSpeed);
-      const cloudCover = Math.max(cloudCoverOW, wb.cloudCover, sg.cloudCover);
-
-      // rest of your logic exactly as original
-      // ...
+    const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
+    const forecasts = owRaw.list.filter(f => {
+      const t = new Date(f.dt * 1000);
+      return t >= start && t <= end;
     });
 
-    // [rest of UI render unchanged]
-  } catch (e) {
-    resDiv.innerHTML = '<p class="bad">Error fetching weather data.</p>';
+    const lines = forecasts.map(f => {
+      const t = new Date(f.dt * 1000);
+      const temp = f.main.temp;
+      const humidity = f.main.humidity;
+      const dewPoint = estimateDewPoint(temp, humidity);
+      const cloudBase = estimateCloudBase(temp, dewPoint);
+
+      const windKts = f.wind.speed * 1.94384;
+      const gustKts = (f.wind.gust || f.wind.speed) * 1.94384;
+      const vis = f.visibility;
+
+      const visibility = Math.min(vis, wb.visibility, sg.visibility);
+      const wind = Math.max(windKts, wb.windSpeed, sg.windSpeed);
+      const gust = Math.max(gustKts, wb.gustSpeed, sg.gustSpeed);
+      const cloud = Math.max(f.clouds.all, wb.cloudCover, sg.cloudCover);
+      const desc = f.weather[0].description;
+
+      const limits = checkLimits(wind, gust, visibility, desc, cloud, cloudBase);
+      const shear = shearRisk(wind, gust);
+      const turb = turbulenceRisk(gust);
+
+      return `
+${formatUKDate(t)}
+  Wind: ${highlight("", wind.toFixed(1) + " kt", wind > 20)} Gusts: ${highlight("", gust.toFixed(1) + " kt", gust > 20)}
+  Visibility: ${highlight("", visibility + " m", visibility < 5000)}
+  Clouds: ${cloud}% → Base: ${cloudBase} ft
+  Description: ${desc}
+  ${limits.safe ? '<span class="ok">✓ OK to fly</span>' : '<span class="bad">✗ ' + limits.msg + '</span>'}
+  Shear: <span class="${shear.class}">${shear.level}</span>, Turbulence: <span class="${turb.class}">${turb.level}</span>
+`;
+    });
+
+    resDiv.innerHTML = lines.join('\n\n');
+  } catch (err) {
+    console.error(err);
+    resDiv.innerHTML = "<p class='bad'>Error fetching weather data.</p>";
   }
 }
 
-// [rest of your load event listeners/UI initialization unchanged]
+// Dark mode toggle
+document.getElementById('toggle-theme').addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+});
+
+// Set default start time to now and load weather
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date().toISOString().slice(0, 16);
+  document.getElementById('start').value = now;
+  checkFlight();
+});
 </script>
 </body>
 </html>
