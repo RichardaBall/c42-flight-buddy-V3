@@ -1,59 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Visual Weather Check - Live Snapshot</title>
-<style>
-  body {
-    text-align: center;
-    font-family: Arial, sans-serif;
-    background: #f0f0f0;
-    margin: 0;
-    padding: 20px;
-  }
-  img {
-    max-width: 100%;
-    height: auto;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
-  }
-  h1 {
-    margin-bottom: 20px;
-  }
-  #refresh-info {
-    margin-top: 10px;
-    font-size: 0.9rem;
-    color: #555;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visibility Check - Swansea Airport</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f5f5f5;
+      margin: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    #cam-snap {
+      max-width: 100%;
+      border: 2px solid #333;
+      border-radius: 5px;
+    }
+    footer {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
-  <h1>Visual Weather Check - Mumbles Webcam Snapshot</h1>
-  <img id="snapshot" src="" alt="Live Webcam Snapshot" />
-  <div id="refresh-info">Loading latest snapshot...</div>
+  <h1>Visibility Check - Swansea Airport</h1>
+  <img id="cam-snap" src="" alt="Webcam snapshot" />
+  <p>Auto-refreshes every 15 seconds.</p>
+  <footer>&copy; 2025 Richard Ball</footer>
 
-<script>
-  const img = document.getElementById('snapshot');
-  const info = document.getElementById('refresh-info');
-  const baseUrl = 'https://www.gowerlive.co.uk/mumbles-webcam/snapshot.jpg';
+  <script>
+    const camImg = document.getElementById('cam-snap');
+    const camUrlBase = "https://video-live-swansea.s3.eu-west-2.amazonaws.com/latest.jpg";
 
-  function loadSnapshot() {
-    const timestamp = Date.now();
-    img.src = `${baseUrl}?t=${timestamp}`;
-    info.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-  }
+    function updateSnapshot() {
+      const url = camUrlBase + "?_=" + new Date().getTime();
+      camImg.src = url;
+    }
 
-  img.onerror = () => {
-    info.textContent = 'Failed to load snapshot. Retrying...';
-  };
-
-  // Load snapshot on page load
-  loadSnapshot();
-
-  // Refresh snapshot every 15 seconds
-  setInterval(loadSnapshot, 15000);
-</script>
+    updateSnapshot();
+    setInterval(updateSnapshot, 15000);
+  </script>
 </body>
 </html>
