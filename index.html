@@ -281,10 +281,18 @@ async function checkFlight() {
       })();
       const rainClass = rainLevel === 'bad' ? 'bad' : rainLevel === 'warn' ? 'warn' : '';
 
+      let cloudBaseClass = "";
+      if (cloudBase < 1000) cloudBaseClass = "bad";
+      else if (cloudBase >= 1000 && cloudBase < 1500) cloudBaseClass = "amber";
+
+      const cloudBaseDisplay = cloudBaseClass
+        ? `<span class="${cloudBaseClass} highlight">${cloudBase} ft AGL</span>`
+        : `${cloudBase} ft AGL`;
+
       messages.push(
 `Time: ${formatUKDate(new Date(item.dt * 1000))}
 Temperature: ${temp.toFixed(1)}°C
-${highlight("Cloud base: ~", cloudBase + " ft AGL", cloudBase < 1000, "bad")}
+Cloud base: ~${cloudBaseDisplay}
 QNH: ${pressure} hPa
 QFE: ${QFE} hPa
 ${highlight("Wind: ", windDeg + "° @ " + windKts + " kt", windKts > 20)}
@@ -350,7 +358,6 @@ toggleThemeBtn.addEventListener("click", () => {
   toggleThemeBtn.textContent = document.body.classList.contains("dark-mode") ? "Light Mode" : "Dark Mode";
 });
 
-// Set default start time to 30 minutes from now
 const now = new Date();
 now.setMinutes(now.getMinutes() + 30);
 document.getElementById("start").value = now.toISOString().slice(0,16);
